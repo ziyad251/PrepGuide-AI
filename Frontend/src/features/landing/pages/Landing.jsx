@@ -1,94 +1,14 @@
 import { Link } from "react-router"
 import Navbar from "../../../components/layout/Navbar"
-import "../style/landing.scss"
+import "../style/landing-premium.scss"
 
-const FEATURES = [
-    { title: "Resume Analysis", desc: "AI parses your resume to understand strengths and gaps." },
-    { title: "ATS Match Scoring", desc: "See how well you align with the job description." },
-    { title: "Technical Questions", desc: "Role-specific technical questions with model answers." },
-    { title: "Behavioral Questions", desc: "STAR-style prompts tailored to your profile." },
-    { title: "Personalized Roadmap", desc: "Day-by-day preparation plan to close skill gaps." },
-    { title: "PDF Export", desc: "Download an optimized resume PDF anytime." },
+const flow = ["Resume + target role", "Candidate skill profile", "Adaptive interview", "Answer evidence", "Personalized roadmap"]
+const pillars = [
+    ["Adaptive interviews", "Every answer influences what comes next, so practice follows your actual reasoning instead of a fixed question list."],
+    ["Evidence-based skills", "See what you demonstrated, what remains unassessed, and where the interview found a specific gap."],
+    ["Preparation that moves", "Your roadmap turns the latest evidence into focused study priorities you can act on."],
 ]
 
-const STEPS = [
-    { n: 1, title: "Upload Resume", desc: "PDF or a quick self-description." },
-    { n: 2, title: "Paste Job Description", desc: "Target the exact role you're applying for." },
-    { n: 3, title: "AI Generates Strategy", desc: "Questions, scores, and roadmap in seconds." },
-    { n: 4, title: "Practice & Improve", desc: "Review, download, and track your plans." },
-]
-
-const Landing = () => (
-    <div className="landing-page">
-        <Navbar variant="public" />
-
-        <section className="landing-hero">
-            <h1>PrepGuide <span className="highlight">AI</span></h1>
-            <p className="landing-hero__subtitle">AI-Powered Interview Preparation Platform</p>
-            <p className="landing-hero__desc">
-                Upload your resume, paste a job description, and receive personalized interview questions,
-                ATS insights, match scoring, and a custom preparation roadmap.
-            </p>
-            <div className="landing-hero__actions">
-                <Link to="/register" className="button primary-button">Get Started</Link>
-                <Link to="/login" className="button landing-hero__secondary">Login</Link>
-            </div>
-        </section>
-
-        <section id="features" className="landing-section">
-            <h2>Everything you need to prepare</h2>
-            <div className="landing-features">
-                {FEATURES.map((f) => (
-                    <article key={f.title} className="landing-feature-card">
-                        <h3>{f.title}</h3>
-                        <p>{f.desc}</p>
-                    </article>
-                ))}
-            </div>
-        </section>
-
-        <section className="landing-section landing-how">
-            <h2>How It Works</h2>
-            <ol className="landing-steps">
-                {STEPS.map((s) => (
-                    <li key={s.n}>
-                        <span className="landing-steps__num">{s.n}</span>
-                        <div>
-                            <h3>{s.title}</h3>
-                            <p>{s.desc}</p>
-                        </div>
-                    </li>
-                ))}
-            </ol>
-        </section>
-
-        <section className="landing-section landing-stats">
-            <h2>Trusted by ambitious candidates</h2>
-            <div className="landing-stats__grid">
-                <div>
-                    <strong>1,200+</strong>
-                    <span>Interview Plans Generated</span>
-                </div>
-                <div>
-                    <strong>3,500+</strong>
-                    <span>Match Scores Calculated</span>
-                </div>
-                <div>
-                    <strong>8,000+</strong>
-                    <span>AI Questions Generated</span>
-                </div>
-            </div>
-        </section>
-
-        <footer className="landing-footer">
-            <p>PrepGuide AI</p>
-            <p className="landing-footer__muted">Powered by Gemini AI</p>
-            <div className="landing-footer__links">
-                <a href="#">Privacy Policy</a>
-                <a href="#">Terms of Service</a>
-            </div>
-        </footer>
-    </div>
-)
+const Landing = () => <div className="landing-premium"><Navbar variant="public" /><main><section className="landing-premium__hero"><div className="landing-premium__hero-copy"><p className="eyebrow">Interview intelligence for serious preparation</p><h1>Prepare smarter.<br /><em>Interview with evidence.</em></h1><p>PrepGuide AI adapts every interview to your skills, answers, target role, and areas for improvement.</p><div className="landing-premium__actions"><Link to="/register" className="button primary-button">Start preparing</Link><a href="#how-it-works" className="button secondary-button">Explore how it works</a></div></div><div className="landing-premium__hero-note"><span>01</span><p>Every question has a reason.</p><small>Your role context and demonstrated evidence guide the next focus.</small></div></section><section id="how-it-works" className="landing-premium__flow"><div className="landing-premium__section-heading"><p className="eyebrow">The preparation loop</p><h2>From context to confident answers.</h2></div><div className="flow-line">{flow.map((item, index) => <div className="flow-step" key={item}><span>{String(index + 1).padStart(2, "0")}</span><strong>{item}</strong>{index < flow.length - 1 && <i>→</i>}</div>)}</div></section><section className="landing-premium__pillars"><div className="landing-premium__section-heading"><p className="eyebrow">Why PrepGuide</p><h2>A clearer signal for every practice session.</h2></div><div className="pillar-grid">{pillars.map(([title, text], index) => <article key={title}><span>0{index + 1}</span><h3>{title}</h3><p>{text}</p></article>)}</div></section><section className="landing-premium__cta"><p className="eyebrow">Your next interview is a data point</p><h2>Turn preparation into a system.</h2><Link to="/register" className="button primary-button">Create your workspace</Link></section></main><footer className="landing-premium__footer"><span>PrepGuide AI</span><span>Adaptive practice · Evidence · Direction</span></footer></div>
 
 export default Landing
