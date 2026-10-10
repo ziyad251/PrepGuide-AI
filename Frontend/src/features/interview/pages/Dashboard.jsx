@@ -3,20 +3,50 @@ import { Link, useNavigate } from "react-router"
 import { useAuth } from "../../auth/hooks/useAuth"
 import { useInterview } from "../hooks/useInterview"
 import DeleteConfirmModal from "../../../components/DeleteConfirmModal"
-import "../style/dashboard.scss"
+import { getInterviewReportById, getSimulator, getSimulatorHistory } from "../services/interview.api"
+import "../../../style/product.scss"
 
-const scoreClass = (score) =>
-    score >= 80 ? "score--high" : score >= 60 ? "score--mid" : "score--low"
+const getReportDisplayTitle = (report) => {
+    const candidates = [report?.title, report?.targetRole, report?.jobTitle, report?.roleTitle, report?.role]
+    const reportBodyPattern = /(?:^|\n)\s{0,3}#{1,6}\s|executive summary|key strengths|areas for development|final assessment|next steps|recommendation/i
+    return candidates.find((value) =>
+        typeof value === "string"
+        && value.trim()
+        && value.length <= 160
+        && !reportBodyPattern.test(value)
+    )?.trim() || "Interview Report"
+}
 
 const Dashboard = () => {
     const { user } = useAuth()
-    const { loading, reports, getReports, getResumePdf, deleteReport } = useInterview()
+    const { loading, reports, getReports, deleteReport } = useInterview()
     const navigate = useNavigate()
     const [deleteId, setDeleteId] = useState(null)
     const [deleting, setDeleting] = useState(false)
+    const [sessions, setSessions] = useState([])
+    const [latestSession, setLatestSession] = useState(null)
+    const [latestReportDetail, setLatestReportDetail] = useState(null)
+    const [error, setError] = useState("")
 
     useEffect(() => {
-        getReports()
+        const load = async () => {
+            try {
+                const history = await getSimulatorHistory({ limit: 20 })
+                setSessions(history.sessions || [])
+                if (history.sessions?.[0]?._id) {
+                    const response = await getSimulator(history.sessions[0]._id)
+                    setLatestSession(response.session)
+                }
+                const loadedReports = await getReports()
+                if (loadedReports?.[0]?._id) {
+                    const reportResponse = await getInterviewReportById(loadedReports[0]._id)
+                    setLatestReportDetail(reportResponse.interviewReport)
+                }
+            } catch (requestError) {
+                setError(requestError.response?.data?.message || "We couldn't load your preparation profile.")
+            }
+        }
+        load()
     }, [])
 
     const handleDelete = async () => {
@@ -38,93 +68,18 @@ const Dashboard = () => {
         )
     }
 
-    const totalQuestions = reports.length * 12
+    const latestReport = latestReportDetail || reports[0]
+    const assessedSkills = latestSession?.skillProfile?.filter((skill) => skill.status !== "unassessed") || []
 
     return (
-        <div className="dashboard-page">
-            <header className="dashboard-header">
-                <div>
-                    <h1>Welcome back, <span className="highlight">{user?.username}</span></h1>
-                    <p>Manage your interview plans and generate new strategies.</p>
-                </div>
-                <Link to="/generate" className="button primary-button">
-                    Generate Interview Plan
-                </Link>
-            </header>
-
-            <section className="dashboard-stats">
-                <div>
-                    <strong>{reports.length}</strong>
-                    <span>Interview Plans</span>
-                </div>
-                <div>
-                    <strong>
-                        {reports.length
-                            ? Math.round(
-                                  reports.reduce((s, r) => s + (r.matchScore || 0), 0) / reports.length
-                              )
-                            : "—"}
-                        {reports.length ? "%" : ""}
-                    </strong>
-                    <span>Avg Match Score</span>
-                </div>
-                <div>
-                    <strong>{totalQuestions || "—"}</strong>
-                    <span>Est. AI Questions</span>
-                </div>
-            </section>
-
-            <section className="dashboard-plans">
-                <h2>Recent Plans</h2>
-
-                {reports.length === 0 ? (
-                    <div className="dashboard-empty">
-                        <p>No interview plans generated yet.</p>
-                        <Link to="/generate" className="button primary-button">
-                            Generate First Plan
-                        </Link>
-                    </div>
-                ) : (
-                    <ul className="dashboard-plans__list">
-                        {reports.map((report) => (
-                            <li key={report._id} className="dashboard-plan-card">
-                                <div className="dashboard-plan-card__main">
-                                    <h3>{report.title || "Untitled Position"}</h3>
-                                    <p className={`match-score ${scoreClass(report.matchScore)}`}>
-                                        Match Score: {report.matchScore}%
-                                    </p>
-                                    <p className="dashboard-plan-card__date">
-                                        {new Date(report.createdAt).toLocaleDateString()}
-                                    </p>
-                                </div>
-                                <div className="dashboard-plan-card__actions">
-                                    <button
-                                        type="button"
-                                        className="button"
-                                        onClick={() => navigate(`/interview/${report._id}`)}
-                                    >
-                                        View
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="button"
-                                        onClick={() => getResumePdf(report._id)}
-                                    >
-                                        Download
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="button dashboard-plan-card__delete"
-                                        onClick={() => setDeleteId(report._id)}
-                                    >
-                                        Delete
-                                    </button>
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </section>
+        <div className="product-page">
+            <header className="product-header"><div><p className="eyebrow">Preparation workspace</p><h1>Good morning, {user?.username || "candidate"}</h1><p>Your preparation profile, interview evidence, and next steps in one place.</p></div><Link to="/generate" className="button primary-button">Start an interview</Link></header>
+            {error && <div className="surface empty-state"><h2>We couldn't load your preparation profile.</h2><p>{error}</p><button className="button primary-button" onClick={() => window.location.reload()}>Try again</button></div>}
+            {!error && <>
+                <section className="metric-grid"><div className="surface metric-card"><span className="metric-card__label">Interview reports</span><strong>{reports.length || "—"}</strong><small>{reports.length ? "Saved preparation plans" : "No reports yet"}</small></div><div className="surface metric-card"><span className="metric-card__label">Sessions started</span><strong>{sessions.length || "—"}</strong><small>{sessions.length ? "Adaptive practice sessions" : "Start to create evidence"}</small></div><div className="surface metric-card"><span className="metric-card__label">Skills assessed</span><strong>{assessedSkills.length || "—"}</strong><small>{assessedSkills.length ? "From your latest session" : "Complete an answer first"}</small></div><div className="surface metric-card"><span className="metric-card__label">Roadmap</span><strong>{latestReport?.preparationPlan?.length ? `${latestReport.preparationPlan.length}d` : "—"}</strong><small>{latestReport?.preparationPlan?.length ? "Current preparation plan" : "No roadmap yet"}</small></div></section>
+                <section className="dashboard-section"><div className="dashboard-section__heading"><h2>Latest skill signal</h2><Link to="/skills">View skill intelligence</Link></div>{assessedSkills.length ? <div className="skill-overview">{assessedSkills.slice(0, 6).map((skill) => <div className="skill-tile" key={skill.skill}><div className="skill-tile__top"><span>{skill.skill}</span><span className="skill-tile__score">{skill.currentScore}%</span></div><span className="skill-tile__track"><i style={{ width: `${skill.currentScore}%` }} /></span></div>)}</div> : <div className="empty-state"><h2>No skills assessed yet</h2><p>Complete your first adaptive interview to build evidence about your skills.</p><Link to={latestReport ? `/interview/${latestReport._id}/simulator` : "/generate"} className="button primary-button">{latestReport ? "Practice an interview" : "Create a plan"}</Link></div>}</section>
+                <section className="dashboard-section"><div className="dashboard-section__heading"><h2>Recent interview plans</h2><Link to="/history">View history</Link></div>{reports.length ? reports.slice(0, 4).map((report) => <article className="surface plan-row" key={report._id}><div><p className="plan-row__title">{getReportDisplayTitle(report)}</p><p className="plan-row__date">{new Date(report.createdAt).toLocaleDateString()}</p></div><span className="plan-row__score">{report.matchScore != null ? `${report.matchScore}% match` : "Match pending"}</span><div className="plan-row__actions"><button className="button secondary-button" onClick={() => navigate(`/interview/${report._id}`)}>View report</button><button className="button primary-button" onClick={() => navigate(`/interview/${report._id}/simulator`)}>Practice</button><button className="button secondary-button" onClick={() => setDeleteId(report._id)}>Delete</button></div></article>) : <div className="empty-state"><h2>Your history is empty</h2><p>Generate a target-role plan to start preparing.</p><Link to="/generate" className="button primary-button">Generate plan</Link></div>}</section>
+            </>}
 
             <DeleteConfirmModal
                 open={Boolean(deleteId)}

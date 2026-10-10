@@ -37,7 +37,7 @@ export const useInterview = () => {
             return response.interviewReport
         } catch (error) {
             console.log(error)
-            return null
+            throw error
         } finally {
             setGenerating(false)
         }
