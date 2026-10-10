@@ -1,0 +1,24 @@
+@use "../../../style/product.scss" as *;
+
+.loading-state { padding-top: 80px; h1 { margin-top: 10px; color: $ink; } }
+.intelligence-section { margin-top: 28px; }
+.intelligence-section__heading { display: flex; align-items: end; justify-content: space-between; gap: 15px; margin-bottom: 13px; h2 { color: $ink; font-size: 1.1rem; margin-top: 5px; } }
+.intelligence-section__count { display: grid; place-items: center; min-width: 29px; height: 29px; border-radius: 50%; background: #eaf4f3; color: $teal; font-size: .75rem; font-weight: 800; }
+.skills-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.skill-card { padding: 17px; min-height: 190px; }
+.skill-card__header { display: flex; align-items: start; justify-content: space-between; gap: 10px; min-width: 0; h3 { color: $ink; font-size: .92rem; overflow-wrap: anywhere; } p { color: $muted; margin-top: 4px; font-size: .72rem; } }
+.skill-card__score { color: $teal; font-size: 1.1rem; font-weight: 800; }
+.skill-card__track { display: block; height: 6px; margin: 20px 0 15px; border-radius: 5px; background: #e9edef; overflow: hidden; i { display: block; height: 100%; background: $teal; } }
+.skill-card__facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-bottom: 14px; dt { color: $muted; font-size: .63rem; } dd { margin-top: 3px; color: $ink; font-size: .75rem; font-weight: 750; text-transform: capitalize; } }
+.evidence-list { border-top: 1px solid $line; padding-top: 10px; p { color: $muted; font-size: .72rem; line-height: 1.4; margin-top: 7px; } span { display: block; margin-bottom: 2px; color: $teal; font-size: .62rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; } .evidence-list__gap span { color: $coral; } }
+.history-list { display: grid; gap: 8px; }
+.history-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 18px; padding: 17px 20px; .history-row__summary { min-width: 0; } h3 { color: $ink; font-size: .92rem; overflow-wrap: anywhere; } p { color: $muted; font-size: .74rem; margin-top: 5px; overflow-wrap: anywhere; } strong { color: $teal; white-space: nowrap; } }
+.history-row__actions { display: flex; gap: 7px; flex-wrap: wrap; justify-content: flex-end; }
+.roadmap-message { padding: 12px 15px; margin-bottom: 15px; border-radius: 7px; background: #edf5f3; color: #196c67; font-size: .82rem; }
+.roadmap-list-new { display: grid; gap: 10px; }
+.roadmap-card { display: grid; grid-template-columns: 70px 1fr; padding: 22px; }
+.roadmap-card__number { color: $coral; font-size: 1.8rem; font-weight: 800; letter-spacing: -.05em; }
+.roadmap-card__heading { display: flex; align-items: start; justify-content: space-between; gap: 15px; min-width: 0; h2 { color: $ink; font-size: 1.08rem; margin-top: 4px; overflow-wrap: anywhere; } }
+.roadmap-card ul { display: grid; gap: 6px; margin-top: 17px; padding-left: 17px; color: $muted; font-size: .8rem; line-height: 1.5; }
+@media (max-width: 900px) { .skills-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 620px) { .skills-grid { grid-template-columns: 1fr; } .history-row { grid-template-columns: minmax(0, 1fr) auto; .history-row__actions { grid-column: 1 / -1; justify-content: flex-start; } } .roadmap-card { grid-template-columns: 42px minmax(0, 1fr); padding: 17px; } .roadmap-card__heading { display: block; .status-badge { margin-top: 12px; } } }

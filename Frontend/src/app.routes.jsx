@@ -9,6 +9,11 @@ import Dashboard from "./features/interview/pages/Dashboard"
 import GeneratePlan from "./features/interview/pages/GeneratePlan"
 import Profile from "./features/profile/pages/Profile"
 import Interview from "./features/interview/pages/Interview"
+import Simulator from "./features/interview/pages/Simulator"
+import EvaluationSuite from "./features/interview/pages/EvaluationSuite"
+import Skills from "./features/interview/pages/Skills"
+import History from "./features/interview/pages/History"
+import Roadmap from "./features/interview/pages/Roadmap"
 
 const withApp = (element) => (
     <Protected>
@@ -52,5 +57,25 @@ export const router = createBrowserRouter([
     {
         path: "/interview/:interviewId",
         element: withApp(<Interview />),
+    },
+    {
+        path: "/interview/:reportId/simulator",
+        element: withApp(<Simulator />),
+    },
+    {
+        path: "/evaluation-suite",
+        element: withApp(<EvaluationSuite />),
+    },
+    {
+        path: "/skills",
+        element: withApp(<Skills />),
+    },
+    {
+        path: "/history",
+        element: withApp(<History />),
+    },
+    {
+        path: "/roadmap",
+        element: withApp(<Roadmap />),
     },
 ])

@@ -1,0 +1,19 @@
+import { useEffect, useState } from "react"
+import { Link, useNavigate } from "react-router"
+import { getAllInterviewReports } from "../services/interview.api"
+import { getSimulatorHistory } from "../services/interview.api"
+import { ReportPreview } from "../components/ReportMarkdown"
+import "../../../style/product.scss"
+import "../style/intelligence.scss"
+
+const History = () => {
+    const navigate = useNavigate()
+    const [reports, setReports] = useState([])
+    const [sessions, setSessions] = useState([])
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState("")
+    useEffect(() => { (async () => { try { const [reportResponse, sessionResponse] = await Promise.all([getAllInterviewReports(), getSimulatorHistory({ limit: 50 })]); setReports(reportResponse.interviewReports || []); setSessions(sessionResponse.sessions || []) } catch (requestError) { setError(requestError.response?.data?.message || "We couldn't load your interview history.") } finally { setLoading(false) } })() }, [])
+    if (loading) return <main className="product-page loading-state"><p className="eyebrow">Practice archive</p><h1>Loading your interview history...</h1></main>
+    return <main className="product-page"><header className="product-header"><div><p className="eyebrow">Practice archive</p><h1>Interview history</h1><p>Review the plans you created and the adaptive sessions that produced your evidence.</p></div><Link to="/generate" className="button primary-button">Start an interview</Link></header>{error && <div className="empty-state"><h2>We couldn't load your history</h2><p>{error}</p></div>} {!error && <><section className="intelligence-section"><div className="intelligence-section__heading"><div><p className="eyebrow">Preparation context</p><h2>Interview plans</h2></div><span className="intelligence-section__count">{reports.length}</span></div>{reports.length ? <div className="history-list">{reports.map((report) => <article className="surface history-row" key={report._id}><div className="history-row__summary"><h3>{report.title || "Untitled position"}</h3><p>{new Date(report.createdAt).toLocaleDateString()} · Roadmap available in report</p><ReportPreview report={report} /></div><strong>{report.matchScore != null ? `${report.matchScore}%` : "—"}</strong><div className="history-row__actions"><button className="button secondary-button" onClick={() => navigate(`/interview/${report._id}`)}>View report</button><button className="button primary-button" onClick={() => navigate(`/interview/${report._id}/simulator`)}>Practice</button></div></article>)}</div> : <div className="empty-state"><h2>No interview plans yet</h2><p>Start with a target role and job description to create your first preparation context.</p><Link to="/generate" className="button primary-button">Create a plan</Link></div>}</section><section className="intelligence-section"><div className="intelligence-section__heading"><div><p className="eyebrow">Adaptive practice</p><h2>Simulator sessions</h2></div><span className="intelligence-section__count">{sessions.length}</span></div>{sessions.length ? <div className="history-list">{sessions.map((session) => <article className="surface history-row" key={session._id}><div><h3>{session.targetRole}</h3><p>{session.interviewType} · {session.difficulty} · {new Date(session.createdAt).toLocaleDateString()}</p></div><span className={`status-badge ${session.status === "completed" ? "" : "status-badge--warning"}`}>{session.status}</span><div className="history-row__actions"><button className="button primary-button" onClick={() => navigate(`/interview/${session.report}/simulator`)}>Open session</button></div></article>)}</div> : <div className="empty-state"><h2>No adaptive sessions yet</h2><p>Complete a session to build a persistent skill profile.</p></div>}</section></>}</main>
+}
+export default History

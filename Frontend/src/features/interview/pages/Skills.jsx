@@ -1,0 +1,19 @@
+import { useEffect, useState } from "react"
+import { Link } from "react-router"
+import { getSimulator, getSimulatorHistory } from "../services/interview.api"
+import "../../../style/product.scss"
+import "../style/intelligence.scss"
+
+const SkillGroup = ({ title, skills, tone }) => <section className="intelligence-section"><div className="intelligence-section__heading"><div><p className="eyebrow">{tone}</p><h2>{title}</h2></div><span className="intelligence-section__count">{skills.length}</span></div>{skills.length ? <div className="skills-grid">{skills.map((skill) => <article className="surface skill-card" key={skill.skill}><div className="skill-card__header"><div><h3>{skill.skill}</h3><p>{skill.category || "Interview skill"}</p></div>{skill.status === "unassessed" ? <span className="status-badge status-badge--quiet">Not assessed</span> : <span className="skill-card__score">{skill.currentScore}%</span>}</div>{skill.status !== "unassessed" && <><span className="skill-card__track"><i style={{ width: `${skill.currentScore}%` }} /></span><dl className="skill-card__facts"><div><dt>Confidence</dt><dd>{Math.round((skill.confidence || 0) * 100)}%</dd></div><div><dt>Assessments</dt><dd>{skill.questionsAsked || 0}</dd></div><div><dt>Importance</dt><dd>{skill.importance || "—"}</dd></div></dl><div className="evidence-list">{(skill.evidence || []).slice(-2).map((evidence, index) => <p key={`${evidence.description}-${index}`}><span>Evidence</span>{evidence.description}</p>)}{(skill.gaps || []).slice(-2).map((gap, index) => <p key={`${gap.description}-${index}`} className="evidence-list__gap"><span>Gap</span>{gap.description}</p>)}</div></>}</article>)}</div> : <div className="empty-state"><h2>No skills in this group</h2><p>Your profile will move skills here as the interview gathers evidence.</p></div>}</section>
+
+const Skills = () => {
+    const [session, setSession] = useState(null)
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState("")
+    useEffect(() => { (async () => { try { const history = await getSimulatorHistory({ limit: 1 }); if (history.sessions?.[0]?._id) { const response = await getSimulator(history.sessions[0]._id); setSession(response.session) } } catch (requestError) { setError(requestError.response?.data?.message || "We couldn't load your skill profile.") } finally { setLoading(false) } })() }, [])
+    if (loading) return <main className="product-page loading-state"><p className="eyebrow">Skill intelligence</p><h1>Building your skill profile...</h1></main>
+    if (error) return <main className="product-page"><div className="empty-state"><h2>We couldn't load your skills</h2><p>{error}</p></div></main>
+    const skills = session?.skillProfile || []
+    return <main className="product-page"><header className="product-header"><div><p className="eyebrow">Evidence layer</p><h1>Skill intelligence</h1><p>Your profile is built from target-role requirements and demonstrated interview evidence.</p></div>{session && <Link to={`/interview/${session.report}/simulator`} className="button primary-button">Continue practicing</Link>}</header>{!session ? <div className="empty-state"><h2>No skills assessed yet</h2><p>Complete your first adaptive interview to start building evidence about your skills.</p><Link to="/generate" className="button primary-button">Start an interview</Link></div> : <><SkillGroup title="Demonstrated strengths" tone="Evidence-backed" skills={skills.filter((skill) => skill.status === "assessed" && skill.currentScore >= 70)} /><SkillGroup title="Needs improvement" tone="Observed gaps" skills={skills.filter((skill) => skill.status === "gap")} /><SkillGroup title="Needs evidence" tone="Relevant, not tested" skills={skills.filter((skill) => skill.status === "unassessed")} /></>}</main>
+}
+export default Skills

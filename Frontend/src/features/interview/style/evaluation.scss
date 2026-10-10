@@ -1,0 +1,8 @@
+@use "../../../style/product.scss" as *;
+.evaluation-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 24px 0 35px; }
+.evaluation-summary div { padding: 17px; } .evaluation-summary span { color: $muted; font-size: .72rem; } .evaluation-summary strong { display: block; margin-top: 10px; color: $ink; font-size: 1.5rem; }
+.evaluation-cases__heading { display: flex; justify-content: space-between; align-items: end; margin-bottom: 13px; h2 { margin-top: 5px; color: $ink; font-size: 1.1rem; } span { color: $muted; font-size: .72rem; } }
+.evaluation-case { display: grid; grid-template-columns: 58px 1fr auto; gap: 15px; align-items: start; padding: 17px 20px; margin-top: 8px; h3 { margin-top: 5px; color: $ink; font-size: .9rem; } p:not(.eyebrow) { margin-top: 9px; color: $muted; font-size: .76rem; } p b { margin-right: 6px; color: $ink; } small { display: block; margin-top: 8px; color: $muted; line-height: 1.45; } > strong { color: $teal; font-size: .82rem; } }
+.evaluation-case__status { padding-top: 3px; font-size: .68rem; font-weight: 850; &.is-pass { color: $teal; } &.is-fail { color: $coral; } }
+.evaluation-error { margin-bottom: 18px; padding: 12px 15px; background: #fff2ef; color: #a24b3e; border-radius: 7px; font-size: .8rem; }
+@media (max-width: 620px) { .evaluation-summary { grid-template-columns: repeat(2, 1fr); } .evaluation-case { grid-template-columns: 1fr auto; .evaluation-case__status { grid-column: 1 / -1; } } }
