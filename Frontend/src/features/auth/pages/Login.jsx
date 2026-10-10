@@ -22,12 +22,12 @@ const Login = () => {
     }
 
     if(loading){
-        return (<main><h1>Loading.......</h1></main>)
+        return (<main className="auth-form-page"><h1>Loading.......</h1></main>)
     }
 
 
     return (
-        <main>
+        <main className="auth-form-page">
             <div className="form-container">
                 <h1>Login</h1>
                 <form onSubmit={handleSubmit}>
