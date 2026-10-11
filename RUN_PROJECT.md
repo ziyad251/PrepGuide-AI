@@ -21,6 +21,10 @@ JWT_SECRET=your_secret_key
 GOOGLE_GENAI_API_KEY=your_gemini_api_key
 ```
 
+RAG uses the existing MongoDB instance for candidate knowledge documents.
+Gemini embeddings are used when `GOOGLE_GENAI_API_KEY` is available; the
+simulator falls back to lexical retrieval when embeddings are unavailable.
+
 Start the backend:
 
 ```bash
@@ -58,3 +62,11 @@ http://localhost:5173
 3. Start the frontend.
 4. Open `http://localhost:5173` in your browser.
 5. Register/Login and start using the application.
+
+## RAG showcase
+
+Start an interview from a report, then expand **Why was this question
+generated?** under the current question. The panel shows only the retrieved
+candidate, project, and job evidence with relevance scores. The authenticated
+endpoint `GET /api/interview/rag/evaluation` returns retrieval test cases and a
+simple relevance-rate metric for the latest report.

@@ -5,6 +5,15 @@ const upload = require("../middlewares/file.middleware")
 
 const interviewRouter = express.Router()
 
+function receiveResume(req, res, next) {
+    upload.single("resume")(req, res, (error) => {
+        if (error) {
+            console.error("[UPLOAD] multipart parsing failed", { name: error.name, code: error.code, message: error.message })
+            return res.status(400).json({ message: error.message })
+        }
+        next()
+    })
+}
 
 
 /**
@@ -12,7 +21,7 @@ const interviewRouter = express.Router()
  * @description generate new interview report on the basis of user self description,resume pdf and job description.
  * @access private
  */
-interviewRouter.post("/", authMiddleware.authUser, upload.single("resume"), interviewController.generateInterViewReportController)
+interviewRouter.post("/", authMiddleware.authUser, receiveResume, interviewController.generateInterViewReportController)
 
 /**
  * @route GET /api/interview/report/:interviewId
@@ -43,5 +52,14 @@ interviewRouter.post("/resume/pdf/:interviewReportId", authMiddleware.authUser, 
  * @access private
  */
 interviewRouter.delete("/:interviewId", authMiddleware.authUser, interviewController.deleteInterviewReportController)
+
+interviewRouter.post("/simulator", authMiddleware.authUser, interviewController.startSimulatorController)
+interviewRouter.get("/simulator", authMiddleware.authUser, interviewController.getSimulatorHistoryController)
+interviewRouter.get("/simulator/:sessionId", authMiddleware.authUser, interviewController.getSimulatorController)
+interviewRouter.post("/simulator/:sessionId/answer", authMiddleware.authUser, interviewController.answerSimulatorController)
+interviewRouter.post("/simulator/:sessionId/roadmap/recalculate", authMiddleware.authUser, interviewController.recalculateRoadmapController)
+interviewRouter.post("/evaluation-suite/run", authMiddleware.authUser, interviewController.runEvaluationSuiteController)
+interviewRouter.get("/evaluation-suite", authMiddleware.authUser, interviewController.getEvaluationSuiteController)
+interviewRouter.get("/rag/evaluation", authMiddleware.authUser, interviewController.getRagEvaluationController)
 
 module.exports = interviewRouter
