@@ -1,21 +1,6 @@
-const { GoogleGenAI } = require("@google/genai")
 const { z } = require("zod")
-const { zodToJsonSchema } = require("zod-to-json-schema")
 const puppeteer = require("puppeteer")
-
-let ai
-
-function getAiClient() {
-    if (!process.env.GOOGLE_GENAI_API_KEY) {
-        throw new Error("GOOGLE_GENAI_API_KEY is not set in environment variables")
-    }
-    if (!ai) {
-        ai = new GoogleGenAI({
-            apiKey: process.env.GOOGLE_GENAI_API_KEY
-        })
-    }
-    return ai
-}
+const { generateStructured } = require("./llm.service")
 
 
 const interviewReportSchema = z.object({
@@ -51,16 +36,7 @@ async function generateInterviewReport({ resume, selfDescription, jobDescription
                         Job Description: ${jobDescription}
 `
 
-    const response = await getAiClient().models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: zodToJsonSchema(interviewReportSchema),
-        }
-    })
-
-    return JSON.parse(response.text)
+    return generateStructured({ prompt, schema: interviewReportSchema })
 
 
 }
@@ -102,17 +78,7 @@ async function generateResumePdf({ resume, selfDescription, jobDescription }) {
                         The resume should not be so lengthy, it should ideally be 1-2 pages long when converted to PDF. Focus on quality rather than quantity and make sure to include all the relevant information that can increase the candidate's chances of getting an interview call for the given job description.
                     `
 
-    const response = await getAiClient().models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: zodToJsonSchema(resumePdfSchema),
-        }
-    })
-
-
-    const jsonContent = JSON.parse(response.text)
+    const jsonContent = await generateStructured({ prompt, schema: resumePdfSchema })
 
     const pdfBuffer = await generatePdfFromHtml(jsonContent.html)
 
@@ -120,4 +86,21 @@ async function generateResumePdf({ resume, selfDescription, jobDescription }) {
 
 }
 
-module.exports = { generateInterviewReport, generateResumePdf }
+const roadmapSchema = z.object({
+    preparationPlan: z.array(z.object({
+        day: z.number(),
+        focus: z.string(),
+        status: z.enum(["Not Started", "In Progress", "Completed"]),
+        priority: z.enum(["low", "medium", "high"]),
+        tasks: z.array(z.string()),
+    })),
+})
+
+async function generateUpdatedPreparationPlan({ report, skillProfile }) {
+    return generateStructured({
+        prompt: `Update the candidate preparation plan using only the evidence-backed skill profile. Do not invent progress percentages. Use Not Started, In Progress, or Completed status. Prioritize demonstrated gaps and keep unassessed skills as Not Started. Existing plan: ${JSON.stringify(report.preparationPlan)} Skill profile: ${JSON.stringify(skillProfile)}`,
+        schema: roadmapSchema,
+    })
+}
+
+module.exports = { generateInterviewReport, generateResumePdf, generateUpdatedPreparationPlan, roadmapSchema }

@@ -61,7 +61,17 @@ const preparationPlanSchema = new mongoose.Schema({
     tasks: [ {
         type: String,
         required: [ true, "Task is required" ]
-    } ]
+    } ],
+    status: {
+        type: String,
+        enum: [ "Not Started", "In Progress", "Completed" ],
+        default: "Not Started"
+    },
+    priority: {
+        type: String,
+        enum: [ "low", "medium", "high" ],
+        default: "medium"
+    }
 })
 
 const interviewReportSchema = new mongoose.Schema({
