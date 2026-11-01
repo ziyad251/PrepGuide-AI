@@ -128,6 +128,46 @@ The roadmap helps users:
 
 ---
 
+## 🎙️ AI Mock Interview Simulator
+
+A realistic, adaptive interview grounded in the candidate's resume and the analysed job description.
+
+- **Four interview types:** Technical, HR, Behavioural (STAR), and Mixed (alternates technical and behavioural questions).
+- **Configurable:** starting difficulty (adapts up or down after each answer) and length (5, 8, or 12 questions; finish early at any time).
+- **One question at a time** with a full conversation history, and **contextual follow-ups** when an answer is incomplete or makes a claim worth probing.
+- **Per-answer evaluation** of technical correctness, communication and clarity, problem-solving, and relevance, with strengths and missing concepts.
+- **Final report:** an overall score out of 100, individual dimension scores, a readiness verdict, strengths, weaknesses, suggested improvements, ideal answer examples for every question, and prioritised topics to revise.
+- **History:** every session is saved and can be resumed or revisited from *Interview history*.
+
+Scores are **computed deterministically** from the stored per-answer evaluations (weighted by interview type, so HR rounds weigh communication more and technical rounds weigh correctness more). The LLM writes only the qualitative debrief, so the numbers stay consistent and evidence-backed.
+
+---
+
+## 🧩 Resume Project Deep-Dive Simulator
+
+Prepares candidates to defend the projects on their resume against a senior engineer's questions.
+
+- **Project extraction:** projects, technologies, and claims are extracted from the uploaded resume once and cached on the report. Users can also describe a project manually.
+- **Nine focus areas:** architecture, technology choices, database design, API design, authentication and security, performance, scalability, error handling, and real-world scenarios.
+- **Challenging, project-specific questions** such as *"Why did you choose this technology?"*, *"What happens if your application receives 10,000 concurrent requests?"*, and *"How would you debug this production issue?"*
+- **An interactive interviewer** that follows up on weak or unverified answers (capped at two follow-ups per topic so coverage continues) and otherwise moves to the next uncovered focus area.
+- **Project preparation report:** project understanding score, technical knowledge score, per-category breakdown, weak areas, strengths, and the important questions to prepare, each with a suggested answer.
+
+---
+
+## 🛡️ Reliability & Security
+
+- All AI calls stay on the backend; API keys are never exposed to the frontend.
+- Every session query is scoped to the authenticated user, so users can only access their own sessions and reports.
+- Request bodies are validated with **zod**, and malformed IDs return `400` instead of a server error.
+- **AI failures degrade gracefully:**
+  - Timed-out or failed question generation falls back to grounded template questions.
+  - Failed evaluations are stored as *degraded* and excluded from scoring, rather than recorded as fake scores.
+  - Failed final reports fall back to a report built from per-answer feedback, which can be regenerated later.
+- Answers are claimed atomically, so a double-submit cannot evaluate the same question twice. If processing fails, the answer is released so the candidate can resubmit.
+
+---
+
 ## 👤 Profile Management
 
 Users can manage their personal and professional information through the application.
@@ -243,47 +283,55 @@ User Registration / Login
 | **Database** | MongoDB |
 | **Authentication** | JWT |
 | **API Architecture** | RESTful APIs |
-| **AI** | Generative AI |
+| **AI** | Google Gemini (`@google/genai`), optional OpenRouter primary with Gemini fallback |
+| **Validation** | Zod (request bodies and structured LLM output) |
 | **Resume Input** | PDF |
 ---
 
 # 📁 Project Structure
 
 ```text
-PrepGuide-AI/
-│
+interview-ai-yt/
 ├── Backend/
-│   ├── controllers/
-│   ├── models/
-│   ├── routes/
-│   ├── middleware/
-│   ├── services/
-│   └── ...
+│   ├── server.js
+│   ├── src/
+│   │   ├── app.js                        # Express app, routes, JSON error handler
+│   │   ├── config/                       # database + cookie config
+│   │   ├── controllers/
+│   │   │   ├── auth.controller.js
+│   │   │   ├── interview.controller.js   # plans, mock interview simulator
+│   │   │   └── deepDive.controller.js    # project deep-dive
+│   │   ├── middlewares/                  # JWT cookie auth, multer upload, zod validation
+│   │   ├── models/
+│   │   │   ├── interviewReport.model.js  # plan + cached resume projects
+│   │   │   ├── interviewSession.model.js # mock interview turns + final report
+│   │   │   ├── deepDiveSession.model.js  # deep-dive turns + project report
+│   │   │   └── ...
+│   │   ├── routes/
+│   │   └── services/
+│   │       ├── llm.service.js            # structured generation, timeouts, provider fallback
+│   │       ├── simulator.service.js      # interview questions, evaluation, final report
+│   │       ├── deepDive.service.js       # project extraction, interviewer, project report
+│   │       ├── scoring.service.js        # deterministic score aggregation
+│   │       ├── sessionTurn.service.js    # atomic answer claim / release
+│   │       ├── rag.service.js            # candidate-scoped retrieval
+│   │       └── ...
+│   └── test/                             # node:test unit + HTTP tests
 │
 ├── Frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   ├── services/
-│   │   └── ...
-│   └── ...
-│
-├── assets/
-│   ├── screenshots/
-│   │   ├── home.png
-│   │   ├── login.png
-│   │   ├── resume-upload.png
-│   │   ├── job-description.png
-│   │   ├── interview-questions.png
-│   │   └── roadmap.png
-│   │
-│   └── demo.gif
+│   └── src/
+│       ├── components/                   # layout, ConfirmModal, progress
+│       └── features/
+│           ├── auth/
+│           ├── interview/                # plans, mock interview setup / session / report
+│           ├── deep-dive/                # project deep-dive hub / session / report
+│           ├── practice/                 # shared session UI: thread, composer, scores, report blocks
+│           ├── profile/
+│           └── landing/
 │
 ├── README.md
 └── RUN_PROJECT.md
 ```
-
-> The exact internal structure may vary depending on the current implementation.
 
 ---
 
@@ -328,13 +376,17 @@ Configure the required environment variables.
 Example:
 
 ```env
-PORT=5000
 MONGO_URI=your_mongodb_connection_string
 JWT_SECRET=your_jwt_secret
-AI_API_KEY=your_ai_api_key
+GOOGLE_GENAI_API_KEY=your_gemini_api_key
+# optional
+GEMINI_MODEL=gemini-3-flash-preview
+OPENROUTER_API_KEY=
+OPENROUTER_MODEL=
+CLIENT_URL=
 ```
 
-> Environment variable names may differ depending on the current project configuration.
+The backend runs on port `3000`. See [RUN_PROJECT.md](RUN_PROJECT.md) for details.
 
 Start the backend server:
 
@@ -368,42 +420,46 @@ The Vite development server will display the local application URL in the termin
 
 ---
 
-# 🔌 Core API Functionality
+# 🔌 API Reference
 
-The backend provides RESTful APIs for the major application features.
+All routes except register and login require the JWT `token` cookie. Every session and report lookup is scoped to the logged-in user.
 
-### Authentication
+### Authentication: `/api/auth`
 
-```text
-User Registration
-User Login
-JWT Authentication
-Protected Routes
-```
+| Method | Route | Description |
+|---|---|---|
+| POST | `/register` | Create an account |
+| POST | `/login` | Log in (sets the auth cookie) |
+| GET | `/logout` | Log out and blacklist the token |
+| GET | `/get-me` | Current user |
 
-### User Management
+### Interview plans and mock interviews: `/api/interview`
 
-```text
-User Profile
-Profile Updates
-User Data Management
-```
+| Method | Route | Description |
+|---|---|---|
+| POST | `/` | Generate a plan from a resume PDF / self-description and a job description |
+| GET | `/` | List plans |
+| GET | `/report/:interviewId` | Get a plan |
+| DELETE | `/:interviewId` | Delete a plan |
+| POST | `/resume/pdf/:interviewReportId` | Generate a tailored resume PDF |
+| POST | `/simulator` | Start a mock interview. Body: `reportId`, `interviewType` (`technical`, `hr`, `behavioral`, `mixed`), `difficulty`, `questionLimit` (3-15), optional `targetRole` |
+| GET | `/simulator` | Session history. Query: `status`, `reportId`, `page`, `limit` |
+| GET | `/simulator/:sessionId` | Session with transcript and final report |
+| POST | `/simulator/:sessionId/answer` | Answer the current question (`{ answer }`); returns the evaluation, the next question, and `readyToFinish` |
+| POST | `/simulator/:sessionId/finish` | Finish and generate the final report. Idempotent; `{ regenerate: true }` retries a fallback report |
+| POST | `/simulator/:sessionId/roadmap/recalculate` | Update the roadmap from interview evidence |
 
-### Resume Processing
+### Project deep-dive: `/api/deep-dive`
 
-```text
-PDF Resume Upload
-Resume Processing
-Resume-Based Context Generation
-```
-
-### Interview Preparation
-
-```text
-Job Description Analysis
-Personalized Question Generation
-Preparation Roadmap Generation
-```
+| Method | Route | Description |
+|---|---|---|
+| GET | `/reports/:reportId/projects` | Projects extracted from the plan's resume (cached; `?refresh=true` re-scans) |
+| POST | `/` | Start. Body: `reportId`, either `projectId` or `customProject` (`name`, `description`, `technologies`), `difficulty`, `focusAreas`, `questionLimit` |
+| GET | `/` | Deep-dive history |
+| GET | `/:sessionId` | Session with transcript and report |
+| POST | `/:sessionId/answer` | Answer the current question (`{ answer }`) |
+| POST | `/:sessionId/finish` | Generate the project preparation report. Idempotent; supports `{ regenerate: true }` |
+| DELETE | `/:sessionId` | Delete a session |
 
 ---
 
