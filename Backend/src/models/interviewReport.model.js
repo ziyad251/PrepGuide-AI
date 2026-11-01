@@ -74,6 +74,16 @@ const preparationPlanSchema = new mongoose.Schema({
     }
 })
 
+const resumeProjectSchema = new mongoose.Schema({
+    projectId: { type: String, required: true },
+    name: { type: String, required: true },
+    summary: String,
+    technologies: [ String ],
+    highlights: [ String ],
+}, {
+    _id: false
+})
+
 const interviewReportSchema = new mongoose.Schema({
     jobDescription: {
         type: String,
@@ -94,6 +104,9 @@ const interviewReportSchema = new mongoose.Schema({
     behavioralQuestions: [ behavioralQuestionSchema ],
     skillGaps: [ skillGapSchema ],
     preparationPlan: [ preparationPlanSchema ],
+    // projects extracted from the resume on first deep-dive request and cached here
+    projects: [ resumeProjectSchema ],
+    projectsExtractedAt: Date,
     user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "users"

@@ -19,6 +19,8 @@ const evaluationSchema = new mongoose.Schema({
     missingConcepts: [String],
     recommendedTopics: [String],
     feedback: String,
+    // true when the AI evaluation failed and placeholder scores were stored; excluded from final scoring
+    degraded: { type: Boolean, default: false },
     skillsAssessed: [{
         skill: String,
         category: String,
@@ -33,8 +35,10 @@ const evaluationSchema = new mongoose.Schema({
 const turnSchema = new mongoose.Schema({
     question: { type: String, required: true },
     answer: String,
+    answeredAt: Date,
     difficulty: { type: String, enum: ["easy", "medium", "hard"], required: true },
     focus: String,
+    isFollowUp: { type: Boolean, default: false },
     ragContext: [{
         content: String,
         source: String,
@@ -63,17 +67,60 @@ const skillMetricSchema = new mongoose.Schema({
     status: { type: String, enum: ["unassessed", "assessed", "gap"] },
 }, { _id: false })
 
+const scoreSchema = new mongoose.Schema({
+    technicalCorrectness: { type: Number, min: 0, max: 100 },
+    communication: { type: Number, min: 0, max: 100 },
+    problemSolving: { type: Number, min: 0, max: 100 },
+    relevance: { type: Number, min: 0, max: 100 },
+}, { _id: false })
+
+const finalReportSchema = new mongoose.Schema({
+    source: { type: String, enum: ["ai", "fallback"], required: true },
+    overallScore: { type: Number, min: 0, max: 100 },
+    scores: scoreSchema,
+    verdict: { type: String, enum: ["ready", "almost_ready", "needs_practice", "insufficient_data"] },
+    summary: String,
+    strengths: [String],
+    weaknesses: [String],
+    improvements: [String],
+    idealAnswers: [{
+        _id: false,
+        question: String,
+        answerSummary: String,
+        idealAnswer: String,
+        keyPoints: [String],
+        score: { type: Number, min: 0, max: 10 },
+    }],
+    topicsToRevise: [{
+        _id: false,
+        topic: String,
+        reason: String,
+        priority: { type: String, enum: ["low", "medium", "high"] },
+    }],
+    answeredCount: Number,
+    evaluatedCount: Number,
+    generatedAt: { type: Date, default: Date.now },
+}, { _id: false })
+
 const interviewSessionSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: "users", required: true },
     report: { type: mongoose.Schema.Types.ObjectId, ref: "InterviewReport", required: true },
     targetRole: { type: String, required: true },
-    interviewType: { type: String, enum: ["technical", "behavioral", "mixed"], required: true },
+    interviewType: { type: String, enum: ["technical", "hr", "behavioral", "mixed"], required: true },
     difficulty: { type: String, enum: ["easy", "medium", "hard"], required: true },
     status: { type: String, enum: ["active", "completed"], default: "active" },
+    questionLimit: { type: Number, min: 3, max: 15, default: 8 },
     currentDifficulty: { type: String, enum: ["easy", "medium", "hard"], required: true },
     turns: [turnSchema],
     skillProfile: [skillMetricSchema],
     topSkillGaps: [String],
+    // denormalised from finalReport so history lists can show scores without loading reports
+    overallScore: { type: Number, min: 0, max: 100 },
+    completedAt: Date,
+    finalReport: finalReportSchema,
 }, { timestamps: true })
+
+interviewSessionSchema.index({ user: 1, createdAt: -1 })
+interviewSessionSchema.index({ user: 1, report: 1, status: 1 })
 
 module.exports = mongoose.model("InterviewSession", interviewSessionSchema)
