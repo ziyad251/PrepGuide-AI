@@ -108,3 +108,11 @@ export const recalculateRoadmap = async (sessionId) => {
     const response = await api.post(`/api/interview/simulator/${sessionId}/roadmap/recalculate`)
     return response.data
 }
+
+/**
+ * @description Finish a mock interview and generate its final report. Pass { regenerate: true } to retry a fallback report.
+ */
+export const finishSimulator = async (sessionId, { regenerate = false } = {}) => {
+    const response = await api.post(`/api/interview/simulator/${sessionId}/finish`, { regenerate })
+    return response.data
+}
