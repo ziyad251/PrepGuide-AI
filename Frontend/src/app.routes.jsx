@@ -14,6 +14,11 @@ import EvaluationSuite from "./features/interview/pages/EvaluationSuite"
 import Skills from "./features/interview/pages/Skills"
 import History from "./features/interview/pages/History"
 import Roadmap from "./features/interview/pages/Roadmap"
+import InterviewSession from "./features/interview/pages/InterviewSession"
+import MockInterviewReport from "./features/interview/pages/MockInterviewReport"
+import DeepDive from "./features/deep-dive/pages/DeepDive"
+import DeepDiveSession from "./features/deep-dive/pages/DeepDiveSession"
+import DeepDiveReport from "./features/deep-dive/pages/DeepDiveReport"
 
 const withApp = (element) => (
     <Protected>
@@ -61,6 +66,30 @@ export const router = createBrowserRouter([
     {
         path: "/interview/:reportId/simulator",
         element: withApp(<Simulator />),
+    },
+    {
+        path: "/mock-interview",
+        element: withApp(<Simulator />),
+    },
+    {
+        path: "/sessions/:sessionId",
+        element: withApp(<InterviewSession />),
+    },
+    {
+        path: "/sessions/:sessionId/report",
+        element: withApp(<MockInterviewReport />),
+    },
+    {
+        path: "/deep-dive",
+        element: withApp(<DeepDive />),
+    },
+    {
+        path: "/deep-dive/:sessionId",
+        element: withApp(<DeepDiveSession />),
+    },
+    {
+        path: "/deep-dive/:sessionId/report",
+        element: withApp(<DeepDiveReport />),
     },
     {
         path: "/evaluation-suite",
