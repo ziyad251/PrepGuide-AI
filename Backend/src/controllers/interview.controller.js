@@ -1,11 +1,13 @@
+const mongoose = require("mongoose")
 const pdfParse = require("pdf-parse")
 const { generateInterviewReport, generateResumePdf, generateUpdatedPreparationPlan } = require("../services/ai.service")
-const { generateOpeningQuestion, generateSkillInventory, evaluateAnswer, evaluationSchema } = require("../services/simulator.service")
+const { generateOpeningQuestion, generateSkillInventory, evaluateAnswer, generateFinalReport, evaluationSchema } = require("../services/simulator.service")
 const { normalizeInventory, updateSkillProfile, rankSkillGaps, selectNextFocus } = require("../services/skill.service")
 const interviewReportModel = require("../models/interviewReport.model")
 const interviewSessionModel = require("../models/interviewSession.model")
 const evaluationRunModel = require("../models/evaluationRun.model")
 const { indexReport, indexTurnEvidence, retrieve, evaluateRetrieval } = require("../services/rag.service")
+const { claimTurnAnswer, releaseTurnAnswer } = require("../services/sessionTurn.service")
 
 
 
@@ -89,7 +91,7 @@ async function getInterviewReportByIdController(req, res) {
  * @description Controller to get all interview reports of logged in user.
  */
 async function getAllInterviewReportsController(req, res) {
-    const interviewReports = await interviewReportModel.find({ user: req.user.id }).sort({ createdAt: -1 }).select("-resume -selfDescription -jobDescription -__v -technicalQuestions -behavioralQuestions -skillGaps -preparationPlan")
+    const interviewReports = await interviewReportModel.find({ user: req.user.id }).sort({ createdAt: -1 }).select("-resume -selfDescription -jobDescription -__v -technicalQuestions -behavioralQuestions -skillGaps -preparationPlan -projects")
 
     res.status(200).json({
         message: "Interview reports fetched successfully.",
@@ -151,7 +153,7 @@ async function startSimulatorController(req, res) {
     const requestId = req.get("x-request-id") || `sim-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     try {
         console.log("[SIMULATOR] start", { requestId })
-        const { reportId, targetRole, interviewType = "technical", difficulty = "medium", resume = "", selfDescription = "", jobDescription = "" } = req.body
+        const { reportId, targetRole, interviewType = "technical", difficulty = "medium", questionLimit = 8, resume = "", selfDescription = "", jobDescription = "" } = req.body
         console.log("SIMULATOR_START", { reportId: Boolean(reportId), targetRole, interviewType, difficulty, userId: Boolean(req.user?.id) })
         console.log("[SIMULATOR] report loading started", { reportId: reportId || null })
         let report = reportId ? await interviewReportModel.findOne({ _id: reportId, user: req.user.id }) : null
@@ -204,7 +206,7 @@ async function startSimulatorController(req, res) {
         console.log("[PERF] START_LLM_READY", { elapsedMs: Date.now() - startedAt, requestId })
         console.log("OPENING_QUESTION_VALIDATED", { focus: opening.focus, difficulty: opening.difficulty })
         const session = await interviewSessionModel.create({
-            user: req.user.id, report: report._id, targetRole: targetRole || report.title, interviewType, difficulty,
+            user: req.user.id, report: report._id, targetRole: targetRole || report.title, interviewType, difficulty, questionLimit,
             currentDifficulty: opening.difficulty || difficulty,
             turns: [{ question: opening.question, focus: opening.focus, difficulty: opening.difficulty || difficulty, ragContext }],
             skillProfile: initialSkillProfile, topSkillGaps: [],
@@ -235,46 +237,87 @@ async function answerSimulatorController(req, res) {
     const session = await interviewSessionModel.findOne({ _id: req.params.sessionId, user: req.user.id }).populate("report")
     if (!session) return res.status(404).json({ message: "Interview session not found." })
     if (session.status === "completed") return res.status(400).json({ message: "Interview session is already complete." })
-    const answer = String(req.body.answer || "").trim()
-    if (!answer) return res.status(400).json({ message: "Answer is required." })
-    const currentTurn = session.turns[session.turns.length - 1]
+    if (!session.report) return res.status(409).json({ message: "The interview plan for this session was deleted." })
+    const { answer } = req.body
+    const turnIndex = session.turns.length - 1
+    const currentTurn = session.turns[turnIndex]
+    if (currentTurn.answer) return res.status(409).json({ message: "This question has already been answered. Finish the interview to see your report." })
+    const claimed = await claimTurnAnswer(interviewSessionModel, { sessionId: session._id, userId: req.user.id, turnIndex, answer })
+    if (!claimed) return res.status(409).json({ message: "This answer is already being processed." })
     currentTurn.answer = answer
-    await session.save()
+    currentTurn.answeredAt = new Date()
     console.log("[PERF] ANSWER_SAVED", { elapsedMs: Date.now() - startedAt })
-    let ragContext = []
     try {
-        ragContext = await retrieve({
-            userId: req.user.id,
-            reportId: session.report._id,
-            sessionId: session._id,
-            query: `${session.targetRole} ${currentTurn.focus || ""} ${currentTurn.question} ${answer}`,
-        })
+        let ragContext = []
+        try {
+            ragContext = await retrieve({
+                userId: req.user.id,
+                reportId: session.report._id,
+                sessionId: session._id,
+                query: `${session.targetRole} ${currentTurn.focus || ""} ${currentTurn.question} ${answer}`,
+            })
+        } catch (error) {
+            console.error("RAG answer retrieval failed; continuing without retrieved context", { message: error.message })
+        }
+        console.log("[PERF] ANSWER_RAG_READY", { elapsedMs: Date.now() - startedAt })
+        const answeredCount = session.turns.filter((turn) => turn.answer).length
+        const readyToFinish = answeredCount >= session.questionLimit
+        const questionStartedAt = Date.now()
+        const result = await evaluateAnswer({ session, turn: currentTurn, answer, resume: session.report.resume, jobDescription: session.report.jobDescription, retrievedContext: ragContext, needsNextQuestion: !readyToFinish })
+        console.log("[LLM] question generation timing", { elapsedMs: Date.now() - questionStartedAt })
+        console.log("[PERF] ANSWER_LLM_READY", { elapsedMs: Date.now() - startedAt })
+        currentTurn.evaluation = result
+        currentTurn.ragContext = ragContext
+        const updatedProfile = updateSkillProfile(session.skillProfile, result.skillsAssessed, session._id, currentTurn._id)
+        session.skillProfile = updatedProfile
+        const rankedGaps = rankSkillGaps(updatedProfile)
+        session.topSkillGaps = rankedGaps.map((gap) => gap.skill)
+        const nextFocus = selectNextFocus(updatedProfile, result.nextFocus)
+        session.currentDifficulty = result.nextDifficulty
+        currentTurn.nextFocus = nextFocus
+        currentTurn.nextDifficulty = result.nextDifficulty
+        if (!readyToFinish) {
+            session.turns.push({ question: result.nextQuestion, focus: nextFocus, difficulty: result.nextDifficulty, isFollowUp: result.nextQuestionType === "follow_up", ragContext })
+        }
+        await session.save()
+        console.log("[SIMULATOR] answer flow completed", { elapsedMs: Date.now() - startedAt })
+        console.log("[PERF] ANSWER_RESPONSE_READY", { elapsedMs: Date.now() - startedAt })
+        res.status(200).json({ session, readyToFinish, evaluation: { ...result, nextFocus, skillGaps: rankedGaps } })
+        if (!result.degraded) {
+            void indexTurnEvidence({ userId: req.user.id, sessionId: session._id, turn: currentTurn, evaluation: result })
+                .then(() => console.log("[PERF] ANSWER_EMBEDDED", { elapsedMs: Date.now() - startedAt }))
+                .catch((error) => console.error("Background RAG turn indexing failed", { message: error.message }))
+        }
     } catch (error) {
-        console.error("RAG answer retrieval failed; continuing without retrieved context", { message: error.message })
+        console.error("SIMULATOR_ANSWER_ERROR", { name: error.name, message: error.message })
+        await releaseTurnAnswer(interviewSessionModel, { sessionId: session._id, userId: req.user.id, turnIndex })
+        res.status(502).json({ message: "We couldn't process your answer. Your draft is still here; please submit it again.", detail: process.env.NODE_ENV === "production" ? undefined : error.message })
     }
-    console.log("[PERF] ANSWER_RAG_READY", { elapsedMs: Date.now() - startedAt })
-    const questionStartedAt = Date.now()
-    const result = await evaluateAnswer({ session, turn: currentTurn, answer, resume: session.report.resume, jobDescription: session.report.jobDescription, retrievedContext: ragContext })
-    console.log("[LLM] question generation timing", { elapsedMs: Date.now() - questionStartedAt })
-    console.log("[PERF] ANSWER_LLM_READY", { elapsedMs: Date.now() - startedAt })
-    currentTurn.evaluation = result
-    currentTurn.ragContext = ragContext
-    const updatedProfile = updateSkillProfile(session.skillProfile, result.skillsAssessed, session._id, currentTurn._id)
-    session.skillProfile = updatedProfile
-    const rankedGaps = rankSkillGaps(updatedProfile)
-    session.topSkillGaps = rankedGaps.map((gap) => gap.skill)
-    const nextFocus = selectNextFocus(updatedProfile, result.nextFocus)
-    session.currentDifficulty = result.nextDifficulty
-    currentTurn.nextFocus = nextFocus
-    currentTurn.nextDifficulty = result.nextDifficulty
-    session.turns.push({ question: result.nextQuestion, focus: nextFocus, difficulty: result.nextDifficulty, ragContext })
+}
+
+/**
+ * @description Finish a mock interview and generate its final report. Idempotent: a completed
+ * session returns its stored report, and a fallback report is regenerated on request.
+ */
+async function finishSimulatorController(req, res) {
+    const session = await interviewSessionModel.findOne({ _id: req.params.sessionId, user: req.user.id }).populate("report", "resume selfDescription jobDescription")
+    if (!session) return res.status(404).json({ message: "Interview session not found." })
+    if (session.finalReport?.source === "ai" || (session.finalReport && !req.body?.regenerate)) {
+        return res.status(200).json({ session })
+    }
+    if (!session.turns.some((turn) => turn.answer)) {
+        return res.status(400).json({ message: "Answer at least one question before finishing the interview." })
+    }
+    // drop the trailing unanswered question so the transcript matches what the candidate saw and answered
+    if (!session.turns[session.turns.length - 1].answer) session.turns.pop()
+    const finalReport = await generateFinalReport({ session, report: session.report })
+    session.finalReport = finalReport
+    session.overallScore = finalReport.overallScore ?? undefined
+    session.status = "completed"
+    session.completedAt = session.completedAt || new Date()
     await session.save()
-    console.log("[SIMULATOR] answer flow completed", { elapsedMs: Date.now() - startedAt })
-    console.log("[PERF] ANSWER_RESPONSE_READY", { elapsedMs: Date.now() - startedAt })
-    res.status(200).json({ session, evaluation: { ...result, nextFocus, skillGaps: rankedGaps } })
-    void indexTurnEvidence({ userId: req.user.id, sessionId: session._id, turn: currentTurn, evaluation: result })
-        .then(() => console.log("[PERF] ANSWER_EMBEDDED", { elapsedMs: Date.now() - startedAt }))
-        .catch((error) => console.error("Background RAG turn indexing failed", { message: error.message }))
+    console.log("[REPORT] mock interview report ready", { sessionId: String(session._id), source: finalReport.source })
+    res.status(200).json({ session })
 }
 
 async function getSimulatorController(req, res) {
@@ -326,6 +369,7 @@ module.exports = {
     deleteInterviewReportController,
     startSimulatorController,
     answerSimulatorController,
+    finishSimulatorController,
     getSimulatorController,
     getSimulatorHistoryController,
     recalculateRoadmapController,
@@ -345,8 +389,12 @@ async function getSimulatorHistoryController(req, res) {
     const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 50)
     const query = { user: req.user.id }
     if (req.query.status === "active" || req.query.status === "completed") query.status = req.query.status
+    if (req.query.reportId) {
+        if (!mongoose.isValidObjectId(req.query.reportId)) return res.status(400).json({ message: "Invalid reportId." })
+        query.report = req.query.reportId
+    }
     const [sessions, total] = await Promise.all([
-        interviewSessionModel.find(query).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).select("-turns -skillProfile"),
+        interviewSessionModel.find(query).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).select("-turns -skillProfile -finalReport"),
         interviewSessionModel.countDocuments(query),
     ])
     res.status(200).json({ sessions, pagination: { page, limit, total, pages: Math.ceil(total / limit) } })

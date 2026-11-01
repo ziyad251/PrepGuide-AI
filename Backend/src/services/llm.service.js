@@ -16,10 +16,10 @@ class LlmError extends Error {
     }
 }
 
-function withTimeout(promise, label) {
+function withTimeout(promise, label, timeoutMs = AI_TIMEOUT_MS) {
     let timeoutId
     const timeout = new Promise((_, reject) => {
-        timeoutId = setTimeout(() => reject(new LlmError("AI_TIMEOUT", `${label} timed out after ${AI_TIMEOUT_MS}ms`)), AI_TIMEOUT_MS)
+        timeoutId = setTimeout(() => reject(new LlmError("AI_TIMEOUT", `${label} timed out after ${timeoutMs}ms`)), timeoutMs)
     })
     return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId))
 }
@@ -50,7 +50,7 @@ function providerError(error, provider) {
     return new LlmError("AI_UNKNOWN_ERROR", error.message, provider, status)
 }
 
-async function requestOpenRouter({ prompt, schema, operation = "structured" }) {
+async function requestOpenRouter({ prompt, schema, operation = "structured", timeoutMs }) {
     const startedAt = Date.now()
     try {
         const configuredModel = process.env.OPENROUTER_MODEL
@@ -73,7 +73,7 @@ async function requestOpenRouter({ prompt, schema, operation = "structured" }) {
                     type: "json_object",
                 },
             }),
-        }), "OpenRouter request")
+        }), "OpenRouter request", timeoutMs)
         console.log("[LLM] OPENROUTER_RESPONSE", {
             status: response.status,
             elapsedMs: Date.now() - startedAt,
@@ -123,14 +123,14 @@ async function requestOpenRouter({ prompt, schema, operation = "structured" }) {
     }
 }
 
-async function requestGemini({ prompt, schema, operation = "structured" }) {
+async function requestGemini({ prompt, schema, operation = "structured", timeoutMs }) {
     const startedAt = Date.now()
     console.log("[PERF] Q1_PROVIDER_CALL_BEGIN", { provider: "gemini", operation })
     const response = await withTimeout(getGeminiClient().models.generateContent({
         model: process.env.GEMINI_MODEL || "gemini-3-flash-preview",
         contents: prompt,
         config: { responseMimeType: "application/json", responseSchema: zodToJsonSchema(schema) },
-    }), "Gemini request")
+    }), "Gemini request", timeoutMs)
     console.log("[PERF] Q1_PROVIDER_CALL_END", { provider: "gemini", operation, elapsedMs: Date.now() - startedAt })
     return response.text
 }
@@ -193,13 +193,13 @@ function validate(content, schema, provider, operation = "structured") {
     return result.data
 }
 
-async function generateStructured({ prompt, schema, operation = "structured" }) {
+async function generateStructured({ prompt, schema, operation = "structured", timeoutMs = AI_TIMEOUT_MS }) {
     const startedAt = Date.now()
     console.log("[PERF] Q1_GENERATION_BEGIN", { operation })
     if (process.env.OPENROUTER_API_KEY) {
         console.log("[LLM] primary=openrouter")
         try {
-            const result = validate(await requestProvider("openrouter", { prompt, schema, operation }), schema, "openrouter", operation)
+            const result = validate(await requestProvider("openrouter", { prompt, schema, operation, timeoutMs }), schema, "openrouter", operation)
             console.log("[PERF] Q1_GENERATION_END", { operation, elapsedMs: Date.now() - startedAt, provider: "openrouter", passed: true })
             return result
         } catch (error) {
@@ -217,7 +217,7 @@ async function generateStructured({ prompt, schema, operation = "structured" }) 
     }
 
     try {
-        const result = validate(await requestProvider("gemini", { prompt, schema, operation }), schema, "gemini", operation)
+        const result = validate(await requestProvider("gemini", { prompt, schema, operation, timeoutMs }), schema, "gemini", operation)
         console.log("[PERF] Q1_GENERATION_END", { operation, elapsedMs: Date.now() - startedAt, provider: "gemini", passed: true })
         return result
     } catch (error) {
