@@ -1,7 +1,11 @@
+
 {
   "rewrites": [
     { "source": "/api/:path*", "destination": "https://prepguide-api.54-161-133-151.sslip.io/api/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
+
+
+
 
