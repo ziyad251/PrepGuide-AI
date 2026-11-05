@@ -1,20 +1,33 @@
-.button{
-
-    border: none;
-    outline: none;
-    padding-inline: 1.5rem;
-    padding-block: 0.75rem;
-    border-radius: 1rem;
+// Shared button system: ink primary, hairline secondary, 6px corners, never pills.
+.button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 42px;
+    padding: 0 18px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-btn);
+    font-size: .88rem;
+    font-weight: 600;
+    line-height: 1;
+    text-decoration: none;
     cursor: pointer;
+    transition: background-color .15s ease, border-color .15s ease, color .15s ease;
 
-    transition: all 0.3s ease-in-out;
+    &:disabled,
+    &[aria-disabled="true"] { opacity: .6; cursor: not-allowed; }
 
-    &.primary-button{
-        background-color: #e1034d;
-        color: white;
+    &.primary-button {
+        background-color: var(--ink);
+        color: var(--paper);
+        &:hover:not(:disabled) { background-color: #34302c; }
     }
 
-    &:active{
-        transform: scale(0.9);
+    &.secondary-button {
+        background-color: var(--surface);
+        border-color: var(--line);
+        color: var(--ink);
+        &:hover:not(:disabled) { border-color: var(--ink-2); }
     }
 }

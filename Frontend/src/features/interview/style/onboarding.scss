@@ -5,9 +5,9 @@
 .onboarding-panel { padding: 23px; }
 .onboarding-panel__heading { display: flex; gap: 13px; align-items: start; margin-bottom: 28px; > span { color: $coral; font-size: .8rem; font-weight: 850; } h2 { margin-top: 5px; color: $ink; font-size: 1.1rem; } }
 .onboarding-panel label:not(.file-field) { display: block; color: $ink; font-size: .78rem; font-weight: 750; }
-.onboarding-panel textarea { display: block; width: 100%; min-height: 260px; margin-top: 9px; padding: 13px; resize: vertical; border: 1px solid $line; border-radius: 7px; background: #fbfcfc; color: $ink; line-height: 1.5; }
+.onboarding-panel textarea { display: block; width: 100%; min-height: 260px; margin-top: 9px; padding: 13px; resize: vertical; border: 1px solid $line; border-radius: 7px; background: #fbfaf7; color: $ink; line-height: 1.5; }
 .field-hint { margin-top: 10px; color: $muted; font-size: .72rem; line-height: 1.45; }
-.file-field { display: grid; gap: 6px; padding: 18px; border: 1px dashed #b9c8cd; border-radius: 8px; color: $ink; cursor: pointer; &:hover { border-color: $teal; background: #f4fbfa; } small { color: $muted; } input { margin-top: 6px; font-size: .75rem; } }
+.file-field { display: grid; gap: 6px; padding: 18px; border: 1px dashed #d6cfc3; border-radius: 8px; color: $ink; cursor: pointer; &:hover { border-color: $accent; background: #fbfaf7; } small { color: $muted; } input { margin-top: 6px; font-size: .75rem; } }
 .onboarding-or { display: flex; align-items: center; gap: 10px; margin: 20px 0; color: $muted; font-size: .72rem; &::before, &::after { content: ""; height: 1px; flex: 1; background: $line; } }
 .onboarding-footer { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 15px 0; p { margin-top: 8px; color: $muted; font-size: .74rem; } .inline-error { margin: 0; color: $coral; } }
 @media (max-width: 720px) { .onboarding-grid { grid-template-columns: 1fr; } .onboarding-footer { display: block; button { margin-top: 18px; } } }

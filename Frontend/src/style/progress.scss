@@ -8,14 +8,17 @@
     &__card {
         max-width: 480px;
         width: 100%;
-        background: #161b22;
-        border: 1px solid #2a3348;
-        border-radius: 1rem;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md);
         padding: 2rem;
         text-align: center;
+        color: var(--ink);
 
         h1 {
-            font-size: 1.35rem;
+            font-family: var(--font-serif);
+            font-weight: 400;
+            font-size: 1.9rem;
             margin: 1rem 0 1.5rem;
         }
 
@@ -28,7 +31,7 @@
         }
 
         li {
-            color: #7d8590;
+            color: var(--color-faint);
             padding-left: 1.5rem;
             position: relative;
 
@@ -41,31 +44,31 @@
     }
 
     &__spinner {
-        width: 48px;
-        height: 48px;
+        width: 40px;
+        height: 40px;
         margin: 0 auto;
-        border: 3px solid #2a3348;
-        border-top-color: #ff2d78;
+        border: 2px solid var(--line);
+        border-top-color: var(--accent);
         border-radius: 50%;
         animation: spin 0.9s linear infinite;
     }
 
     &__step--active {
-        color: #e6edf3 !important;
+        color: var(--ink) !important;
         font-weight: 600;
 
         &::before {
-            content: "◉";
-            color: #ff2d78;
+            content: "●";
+            color: var(--accent);
         }
     }
 
     &__step--done {
-        color: #3fb950 !important;
+        color: var(--ink-2) !important;
 
         &::before {
             content: "✓";
-            color: #3fb950;
+            color: var(--color-success);
         }
     }
 }
@@ -74,4 +77,8 @@
     to {
         transform: rotate(360deg);
     }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .generation-progress__spinner { animation-duration: 2.4s; }
 }

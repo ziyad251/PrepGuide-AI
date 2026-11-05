@@ -1,11 +1,16 @@
+import { useState } from "react"
 import { Navigate } from "react-router"
 import { useAuth } from "../hooks/useAuth"
 
 const GuestOnly = ({ children }) => {
     const { user, loading } = useAuth()
+    // Only block on the first session check. A later loading flag (from a login
+    // attempt) must not unmount the form, or its button/error state is lost.
+    const [settled, setSettled] = useState(!loading)
+    if (!loading && !settled) setSettled(true)
 
-    if (loading) {
-        return <main><h1>Loading...</h1></main>
+    if (!settled) {
+        return <main className="page-loading" aria-live="polite"><p>Loading…</p></main>
     }
 
     if (user) {
